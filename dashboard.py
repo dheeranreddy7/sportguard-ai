@@ -2,11 +2,15 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import joblib
+
+# LOAD ML MODEL
+model = joblib.load("model.pkl")
 
 # PAGE CONFIG
 st.set_page_config(page_title="SportGuard AI", layout="wide")
 
-# 🎨 PROFESSIONAL LIGHT UI
+# 🎨 CLEAN PROFESSIONAL LIGHT UI
 st.markdown("""
 <style>
 body {
@@ -22,9 +26,9 @@ body {
     text-align: center;
 }
 
-/* BIG RISK TEXT */
+/* BIG RESULT */
 .big-risk {
-    font-size: 65px;
+    font-size: 60px;
     font-weight: bold;
     text-align: center;
 }
@@ -34,7 +38,7 @@ body {
     background: white;
     padding: 25px;
     border-radius: 12px;
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
 }
 
 /* BUTTON */
@@ -49,7 +53,6 @@ body {
 /* TABLE */
 [data-testid="stDataFrame"] {
     background-color: white !important;
-    color: black !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -66,7 +69,7 @@ st.info("🤖 Model: Random Forest | Accuracy: 89.4% | F1 Score: 0.87")
 
 st.divider()
 
-# INPUT
+# INPUT SECTION
 st.subheader("🧑 Player Profile")
 
 col1, col2, col3 = st.columns(3)
@@ -83,26 +86,20 @@ with col3:
     sleep = st.slider("Sleep Hours", 3, 10, 7)
     hydration = st.slider("Hydration Level", 1, 10, 7)
 
-# MODEL
-def predict(data):
-    age, training, injuries, sleep, hydration = data
-    score = (training*2 + injuries*3 + (10-sleep)*2 + (10-hydration)) / 10
-
-    if score > 5:
-        return 1, min(score/10, 1)
-    else:
-        return 0, min(score/10, 1)
-
 # BUTTON
 if st.button("🚀 ANALYZE INJURY RISK"):
 
-    pred, prob = predict([age, training, injuries, sleep, hydration])
+    # ML PREDICTION
+    prediction = model.predict([[age, training, injuries, sleep, hydration]])[0]
+    prob = model.predict_proba([[age, training, injuries, sleep, hydration]])[0][1]
+
     risk_percent = round(prob * 100, 1)
 
     st.divider()
 
-    # 🔥 BIG RESULT CARD
-    color = "#dc2626" if pred == 1 else "#16a34a"
+    # RESULT CARD
+    color = "#dc2626" if prediction == 1 else "#16a34a"
+    status = "⚠️ HIGH RISK" if prediction == 1 else "✅ LOW RISK"
 
     st.markdown(f"""
     <div class="card">
@@ -110,7 +107,7 @@ if st.button("🚀 ANALYZE INJURY RISK"):
             {risk_percent}% RISK
         </div>
         <h2 style="text-align:center;color:{color};">
-            {"⚠️ HIGH RISK" if pred==1 else "✅ LOW RISK"}
+            {status}
         </h2>
     </div>
     """, unsafe_allow_html=True)
@@ -132,12 +129,12 @@ if st.button("🚀 ANALYZE INJURY RISK"):
     with colB:
         st.subheader("💡 Recommendations")
 
-        if pred == 1:
+        if prediction == 1:
             st.error("""
             - Reduce training intensity  
             - Increase rest & recovery  
             - Improve hydration  
-            - Monitor workload regularly  
+            - Monitor workload  
             """)
         else:
             st.success("""
@@ -154,7 +151,7 @@ if st.button("🚀 ANALYZE INJURY RISK"):
         "Injuries": injuries,
         "Sleep": sleep,
         "Hydration": hydration,
-        "Risk": "High" if pred == 1 else "Low"
+        "Risk": "High" if prediction == 1 else "Low"
     }])
 
     if os.path.exists("history.csv"):
@@ -162,7 +159,7 @@ if st.button("🚀 ANALYZE INJURY RISK"):
     else:
         new_data.to_csv("history.csv", index=False)
 
-# HISTORY SECTION
+# HISTORY
 st.divider()
 st.subheader("📂 Player History")
 
